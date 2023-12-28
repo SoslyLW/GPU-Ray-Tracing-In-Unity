@@ -7,6 +7,7 @@ Texture2D<float4> _SkyboxTexture;
 SamplerState sampler_SkyboxTexture;
 static const float PI = 3.14159265f;
 float2 _PixelOffset;
+float4 _DirectionalLight;
 
 struct Ray
 {
@@ -83,17 +84,43 @@ void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere)
     }
 }
 
+RayHit Trace(Ray ray)
+{
+    RayHit bestHit = CreateRayHit();
+    IntersectGroundPlane(ray, bestHit);
+    // Add a floating unit sphere
+    for (int i = 0; i < 10; i++)
+    {
+        for (int j = 0; j < 10; j++)
+        {
+            IntersectSphere(ray, bestHit, float4(i * 3.0f, 1.0f, j * 3.0f, 1.0f));
+        }
+    }
+    return bestHit;
+}
+
 float3 Shade(inout Ray ray, RayHit hit)
 {
     if (hit.distance < 1.#INF)
     {
-        float3 specular = float3(0.6f, 0.6f, 0.6f);
+        //float3 specular = float3(0.6f, 0.6f, 0.6f);
+        float3 specular = float3(0.04f, 0.04f, 0.04f);
+        float3 albedo = float3(0.8f, 0.8f, 0.8f);
+        //float3 albedo = float3(1.0f, 1.0f, 1.0f);
         // Reflect the ray and multiply energy with specular reflection
         ray.origin = hit.position + hit.normal * 0.001f;
         ray.direction = reflect(ray.direction, hit.normal);
         ray.energy *= specular;
-        // Return nothing
-        return float3(0.0f, 0.0f, 0.0f);
+        // Shadow test ray
+        bool shadow = false;
+        Ray shadowRay = CreateRay(hit.position + hit.normal * 0.001f, -1 * _DirectionalLight.xyz);
+        RayHit shadowHit = Trace(shadowRay);
+        if (shadowHit.distance != 1.#INF)
+        {
+            return float3(0.0f, 0.0f, 0.0f);
+        }
+        // Return a diffuse-shaded color
+        return saturate(dot(hit.normal, _DirectionalLight.xyz) * -1) * _DirectionalLight.w * albedo;
     }
     else
     {
@@ -104,21 +131,6 @@ float3 Shade(inout Ray ray, RayHit hit)
         float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
         return _SkyboxTexture.SampleLevel(sampler_SkyboxTexture, float2(phi, theta), 0).xyz;
     }
-}
-
-RayHit Trace(Ray ray)
-{
-    RayHit bestHit = CreateRayHit();
-    IntersectGroundPlane(ray, bestHit);
-    // Add a floating unit sphere
-    for (int i = 0; i < 10; i++)
-    {
-        for (int j = 0; j < 10; j++)
-        {
-            IntersectSphere(ray, bestHit, float4(i * 3.0f, 0.0f, j * 3.0f, 1.0f));
-        }
-    }
-    return bestHit;
 }
 
 [numthreads(8, 8, 1)]

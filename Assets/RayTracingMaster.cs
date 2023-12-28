@@ -6,6 +6,7 @@ public class RayTracingMaster : MonoBehaviour
 {
     public ComputeShader RayTracingShader;
     public Texture SkyboxTexture;
+    public Light DirectionalLight;
 
     private RenderTexture _target;
 
@@ -62,6 +63,12 @@ public class RayTracingMaster : MonoBehaviour
             _currentSample = 0;
             transform.hasChanged = false;
         }
+
+        if (DirectionalLight.transform.hasChanged)
+        {
+            _currentSample = 0;
+            DirectionalLight.transform.hasChanged = false;
+        }
     }
 
 
@@ -79,6 +86,8 @@ public class RayTracingMaster : MonoBehaviour
         RayTracingShader.SetTexture(0, "_SkyboxTexture", SkyboxTexture);
         RayTracingShader.SetVector("_PixelOffset", new Vector2(Random.value, Random.value));
 
+        Vector3 l = DirectionalLight.transform.forward;
+        RayTracingShader.SetVector("_DirectionalLight", new Vector4(l.x, l.y, l.z, DirectionalLight.intensity));
     }
 }
 
