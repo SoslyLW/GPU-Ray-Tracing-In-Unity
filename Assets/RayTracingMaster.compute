@@ -12,6 +12,7 @@ struct Ray
 {
     float3 origin;
     float3 direction;
+    float3 energy;
 };
 
 struct RayHit
@@ -35,6 +36,7 @@ Ray CreateRay(float3 origin, float3 direction)
     Ray ray;
     ray.origin = origin;
     ray.direction = direction;
+    ray.energy = float3(1.0f, 1.0f, 1.0f);
     return ray;
 }
 
@@ -63,22 +65,6 @@ void IntersectGroundPlane(Ray ray, inout RayHit bestHit)
     }
 }
 
-float3 Shade(inout Ray ray, RayHit hit)
-{
-    if (hit.distance < 1.#INF)
-    {
-        // Return the normal
-        return hit.normal * 0.5f + 0.5f;
-    }
-    else
-    {
-        // Sample the skybox and write it
-        float theta = acos(ray.direction.y) / -PI;
-        float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
-        return _SkyboxTexture.SampleLevel(sampler_SkyboxTexture, float2(phi, theta), 0).xyz;
-    }
-}
-
 void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere)
 {
  // Calculate distance along the ray where the sphere is intersected
@@ -97,12 +83,41 @@ void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere)
     }
 }
 
+float3 Shade(inout Ray ray, RayHit hit)
+{
+    if (hit.distance < 1.#INF)
+    {
+        float3 specular = float3(0.6f, 0.6f, 0.6f);
+        // Reflect the ray and multiply energy with specular reflection
+        ray.origin = hit.position + hit.normal * 0.001f;
+        ray.direction = reflect(ray.direction, hit.normal);
+        ray.energy *= specular;
+        // Return nothing
+        return float3(0.0f, 0.0f, 0.0f);
+    }
+    else
+    {
+        // Erase the ray's energy - the sky doesn't reflect anything
+        ray.energy = 0.0f;
+        // Sample the skybox and write it
+        float theta = acos(ray.direction.y) / -PI;
+        float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
+        return _SkyboxTexture.SampleLevel(sampler_SkyboxTexture, float2(phi, theta), 0).xyz;
+    }
+}
+
 RayHit Trace(Ray ray)
 {
     RayHit bestHit = CreateRayHit();
     IntersectGroundPlane(ray, bestHit);
     // Add a floating unit sphere
-    IntersectSphere(ray, bestHit, float4(0, 3.0f, 0, 1.0f));
+    for (int i = 0; i < 10; i++)
+    {
+        for (int j = 0; j < 10; j++)
+        {
+            IntersectSphere(ray, bestHit, float4(i * 3.0f, 0.0f, j * 3.0f, 1.0f));
+        }
+    }
     return bestHit;
 }
 
@@ -117,7 +132,13 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // Get a ray for the UVs
     Ray ray = CreateCameraRay(uv);
     // Trace and shade
-    RayHit hit = Trace(ray);
-    float3 result = Shade(ray, hit);
+    float3 result = float3(0, 0, 0);
+    for (int i = 0; i < 8; i++)
+    {
+        RayHit hit = Trace(ray);
+        result += ray.energy * Shade(ray, hit);
+        if (!any(ray.energy))
+            break;
+    }
     Result[id.xy] = float4(result, 1);
 }
