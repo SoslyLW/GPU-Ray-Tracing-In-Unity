@@ -44,6 +44,11 @@ float rand()
     return result;
 }
 
+float sdot(float3 x, float3 y, float f = 1.0f)
+{
+    return saturate(dot(x, y) * f);
+}
+
 float3x3 GetTangentSpace(float3 normal)
 {
     // Choose a helper vector for the cross product
@@ -153,19 +158,25 @@ float3 Shade(inout Ray ray, RayHit hit)
     if (hit.distance < 1.#INF)
     {
         // Reflect the ray and multiply energy with specular reflection
-        ray.origin = hit.position + hit.normal * 0.001f;
-        ray.direction = reflect(ray.direction, hit.normal);
-        ray.energy *= hit.specular;
+        //ray.origin = hit.position + hit.normal * 0.001f;
+        //ray.direction = reflect(ray.direction, hit.normal);
+        //ray.energy *= hit.specular;
         // Shadow test ray
-        bool shadow = false;
-        Ray shadowRay = CreateRay(hit.position + hit.normal * 0.001f, -1 * _DirectionalLight.xyz);
-        RayHit shadowHit = Trace(shadowRay);
-        if (shadowHit.distance != 1.#INF)
-        {
-            return float3(0.0f, 0.0f, 0.0f);
-        }
+        //bool shadow = false;
+        //Ray shadowRay = CreateRay(hit.position + hit.normal * 0.001f, -1 * _DirectionalLight.xyz);
+        //RayHit shadowHit = Trace(shadowRay);
+        //if (shadowHit.distance != 1.#INF)
+        //{
+        //    return float3(0.0f, 0.0f, 0.0f);
+        //}
         // Return a diffuse-shaded color
-        return saturate(dot(hit.normal, _DirectionalLight.xyz) * -1) * _DirectionalLight.w * hit.albedo;
+        //return saturate(dot(hit.normal, _DirectionalLight.xyz) * -1) * _DirectionalLight.w * hit.albedo;
+        
+        // Diffuse shading
+        ray.origin = hit.position + hit.normal * 0.001f;
+        ray.direction = SampleHemisphere(hit.normal);
+        ray.energy *= 2 * hit.albedo * sdot(hit.normal, ray.direction);
+        return 0.0f;
     }
     else
     {
