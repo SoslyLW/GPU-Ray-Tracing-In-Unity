@@ -8,6 +8,8 @@ struct Sphere
     public float radius;
     public Vector3 albedo;
     public Vector3 specular;
+    public float smoothness;
+    public Vector3 emission;
 };
 
 public class RayTracingMaster : MonoBehaviour
@@ -20,6 +22,7 @@ public class RayTracingMaster : MonoBehaviour
     public uint SpheresMax = 10000;
     public float SpherePlacementRadius = 100.0f;
     public int sphereSeed = 1223832719;
+
     private ComputeBuffer _sphereBuffer;
 
     private RenderTexture _target;
@@ -124,17 +127,28 @@ public class RayTracingMaster : MonoBehaviour
             }
             // Albedo and specular color
             Color color = Random.ColorHSV();
-            bool metal = Random.value < 0.5f;
-            //bool metal = Random.value < 0.0f;
-            sphere.albedo = metal ? Vector3.zero : new Vector3(color.r, color.g, color.b);
-            sphere.specular = metal ? new Vector3(color.r, color.g, color.b) : Vector3.one * 0.04f;
+            float chance = Random.value;
+            if (chance < 0.8f)
+            {
+                //Create normal sphere
+                bool metal = chance < 0.4f;
+                sphere.albedo = metal ? Vector4.zero : new Vector4(color.r, color.g, color.b);
+                sphere.specular = metal ? new Vector4(color.r, color.g, color.b) : new Vector4(0.04f, 0.04f, 0.04f);
+                sphere.smoothness = Random.value;
+            }
+            else
+            {
+                //Create source sphere
+                Color emission = Random.ColorHSV(0, 1, 0, 1, 3.0f, 8.0f);
+                sphere.emission = new Vector3(emission.r, emission.g, emission.b);
+            }
             // Add the sphere to the list
             spheres.Add(sphere);
         SkipSphere:
             continue;
         }
         // Assign to compute buffer
-        _sphereBuffer = new ComputeBuffer(spheres.Count, 40);
+        _sphereBuffer = new ComputeBuffer(spheres.Count, 56);
         _sphereBuffer.SetData(spheres);
     }
 
