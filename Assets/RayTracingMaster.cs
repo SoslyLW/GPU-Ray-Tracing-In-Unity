@@ -16,12 +16,14 @@ public class RayTracingMaster : MonoBehaviour
     public Texture SkyboxTexture;
     public Light DirectionalLight;
 
-    public Vector2 SphereRadius = new Vector2(3.0f, 8.0f);
-    public uint SpheresMax = 100;
+    public Vector2 SphereRadius = new Vector2(5.0f, 30.0f);
+    public uint SpheresMax = 10000;
     public float SpherePlacementRadius = 100.0f;
+    public int sphereSeed = 1223832719;
     private ComputeBuffer _sphereBuffer;
 
     private RenderTexture _target;
+    private RenderTexture _converged;
 
     private uint _currentSample = 0;
     private Material _addMaterial;
@@ -47,7 +49,8 @@ public class RayTracingMaster : MonoBehaviour
         if (_addMaterial == null)
             _addMaterial = new Material(Shader.Find("Hidden/AddShader"));
         _addMaterial.SetFloat("_Sample", _currentSample);
-        Graphics.Blit(_target, destination, _addMaterial);
+        Graphics.Blit(_target, _converged, _addMaterial);
+        Graphics.Blit(_converged, destination);
         _currentSample++;
     }
 
@@ -57,13 +60,18 @@ public class RayTracingMaster : MonoBehaviour
         {
             // Release render texture if we already have one
             if (_target != null)
+            {
                 _target.Release();
+                _converged.Release();
+            }
 
             // Get a render target for Ray Tracing
-            _target = new RenderTexture(Screen.width, Screen.height, 0,
-                RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+            _target = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
             _target.enableRandomWrite = true;
             _target.Create();
+            _converged = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+            _converged.enableRandomWrite = true;
+            _converged.Create();
 
             _currentSample = 0;
         }
@@ -95,6 +103,9 @@ public class RayTracingMaster : MonoBehaviour
     }
     private void SetUpScene()
     {
+        //Seed the RNG
+        Random.InitState(sphereSeed);
+
         List<Sphere> spheres = new List<Sphere>();
         // Add a number of random spheres
         for (int i = 0; i < SpheresMax; i++)
@@ -143,6 +154,7 @@ public class RayTracingMaster : MonoBehaviour
         Vector3 l = DirectionalLight.transform.forward;
         RayTracingShader.SetVector("_DirectionalLight", new Vector4(l.x, l.y, l.z, DirectionalLight.intensity));
         RayTracingShader.SetBuffer(0, "_Spheres", _sphereBuffer);
+        RayTracingShader.SetFloat("_Seed", Random.value);
     }
 }
 
