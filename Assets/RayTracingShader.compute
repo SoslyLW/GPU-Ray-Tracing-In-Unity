@@ -39,6 +39,17 @@ struct Sphere
 
 StructuredBuffer<Sphere> _Spheres;
 
+struct MeshObject
+{
+    float4x4 localToWorldMatrix;
+    int indices_offset;
+    int indices_count;
+};
+
+StructuredBuffer<MeshObject> _MeshObjects;
+StructuredBuffer<float3> _Vertices;
+StructuredBuffer<int> _Indices;
+
 float2 _Pixel;
 float _Seed;
 float rand()
